@@ -6,15 +6,15 @@ import android.content.SharedPreferences
 import androidx.core.content.edit
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
-import java.lang.IllegalStateException
 
 object PointsRepository {
+
 
     private var sharedPreferences: SharedPreferences? = null
 
     private const val KEY_POINTS = "total_points"
     private const val KEY_THRESHOLD = "points_threshold"
-    private const val DEFAULT_THRESHOLD = 1000
+    private const val DEFAULT_THRESHOLD = 10000
 
     private val _points = MutableStateFlow(0)
     val points = _points.asStateFlow()
@@ -27,8 +27,7 @@ object PointsRepository {
         synchronized(this) {
             if (sharedPreferences == null) {
                 sharedPreferences = context.applicationContext.getSharedPreferences(
-                    "points_tracker",
-                    Context.MODE_PRIVATE
+                    "points_tracker", Context.MODE_PRIVATE
                 )
                 loadInitialValues()
                 registerListener()
@@ -57,33 +56,36 @@ object PointsRepository {
             ?: throw IllegalStateException("PointsRepository must be initialized")
     }
 
+    fun getPoints(): Int {
+        return _points.value
+    }
 
     fun addPoints(newPoints: Int): Int {
         val newTotal = getPoints() + newPoints
-
-        getPrefs().edit {
-            putInt(KEY_POINTS, newTotal)
-        }
-        return newTotal;
+        setPoints(newTotal)
+        return newTotal
     }
 
     fun resetPoints() {
-        getPrefs().edit {
-            putInt("total_points", 0)
-        }
+        setPoints(0)
     }
 
-    fun getPoints(): Int {
-        return getPrefs().getInt(KEY_POINTS, 0)
-    }
 
     fun getThreshold(): Int {
         return _threshold.value
     }
 
     fun setThreshold(newThreshold: Int) {
+        _threshold.value = newThreshold
         getPrefs().edit {
             putInt(KEY_THRESHOLD, newThreshold)
+        }
+    }
+
+    fun setPoints(newPoints: Int) {
+        _points.value = newPoints
+        getPrefs().edit {
+            putInt(KEY_POINTS, newPoints)
         }
     }
 }

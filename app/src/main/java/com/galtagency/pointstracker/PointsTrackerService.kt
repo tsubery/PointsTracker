@@ -3,7 +3,6 @@ package com.galtagency.pointstracker
 import android.app.Notification
 import android.app.NotificationChannel
 import android.app.NotificationManager
-import android.content.Context
 import android.service.notification.NotificationListenerService
 import android.service.notification.StatusBarNotification
 import androidx.core.app.NotificationCompat
@@ -12,12 +11,6 @@ import java.util.regex.Pattern
 class PointsTrackerService : NotificationListenerService() {
 
     private val pointsPattern = Pattern.compile("\\(\\+(\\d+) points\\)", Pattern.CASE_INSENSITIVE)
-    private val threshold = 100000 // Configurable threshold
-
-    override fun onCreate() {
-        super.onCreate()
-    }
-    // debugging notifications
 
     /*
         override fun onListenerConnected() {
@@ -35,12 +28,23 @@ class PointsTrackerService : NotificationListenerService() {
     }
 
     fun processNotification(sbn: StatusBarNotification) {
-        if (sbn.packageName != "com.robinhood.money") {
-            return
+        val text = sbn.notification.extras.getString(Notification.EXTRA_TEXT, "")
+        val packageName = sbn.packageName
+
+        if (packageName == "com.robinhood.money") {
+            processNotificationText(packageName, text)
+        } else {
+            //processNotificationText(packageName, "packageName: $packageName is not supported")
         }
-        val notificationText = sbn.notification.extras.getString(Notification.EXTRA_TEXT, "")
-        val points = parsePointsFromNotification(notificationText)
-        val currentPoints = PointsRepository.addPoints(points)
+    }
+
+    fun processNotificationText(packageName: String, text: String) {
+        val newPoints = parsePointsFromNotification(text)
+        val currentPoints = PointsRepository.addPoints(newPoints)
+        processNotificationText(
+            "Points Tracker",
+            "New Points: $newPoints, Total Points: $currentPoints"
+        )
         val threshold = PointsRepository.getThreshold()
         if (currentPoints >= threshold) {
             showThresholdNotification(currentPoints)
@@ -50,24 +54,31 @@ class PointsTrackerService : NotificationListenerService() {
 
     internal fun parsePointsFromNotification(text: String): Int {
         val matcher = pointsPattern.matcher(text)
-        if (matcher.find()) {
-            return matcher.group(1).toInt()
+        val found = matcher.find()
+        val pointsString = matcher.group(1)
+        if (found && pointsString != null) {
+            return pointsString.toInt()
         }
         return 0
     }
 
     private fun showThresholdNotification(totalPoints: Int) {
-        val notificationManager =
-            getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+        publishNotification(
+            "Points Threshold Reached!", "You've accumulated $totalPoints points."
+        )
+    }
+
+    private fun publishNotification(title: String, text: String) {
+        val notificationManager = getSystemService(NOTIFICATION_SERVICE) as NotificationManager
         val channelId = "points_tracker_channel"
 
-        val channel =
-            NotificationChannel(channelId, "Points Tracker", NotificationManager.IMPORTANCE_DEFAULT)
+        val channel = NotificationChannel(
+            channelId, "Points Tracker", NotificationManager.IMPORTANCE_DEFAULT
+        )
         notificationManager.createNotificationChannel(channel)
 
         val notification =
-            NotificationCompat.Builder(this, channelId).setContentTitle("Points Threshold Reached!")
-                .setContentText("You've accumulated $totalPoints points.")
+            NotificationCompat.Builder(this, channelId).setContentTitle(title).setContentText(text)
                 .setSmallIcon(android.R.drawable.ic_dialog_info).build()
 
         notificationManager.notify(1, notification)
