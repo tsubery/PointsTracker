@@ -1,45 +1,89 @@
-package com.galtagency.pointstrackerimport
+package com.galtagency.pointstracker
+
 
 import android.content.Context
 import android.content.SharedPreferences
 import androidx.core.content.edit
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import java.lang.IllegalStateException
 
-// A singleton object to ensure there's only one instance of the repository
 object PointsRepository {
-    private lateinit var sharedPreferences: SharedPreferences
+
+    private var sharedPreferences: SharedPreferences? = null
+
+    private const val KEY_POINTS = "total_points"
+    private const val KEY_THRESHOLD = "points_threshold"
+    private const val DEFAULT_THRESHOLD = 1000
+
     private val _points = MutableStateFlow(0)
     val points = _points.asStateFlow()
 
-    fun initialize(context: Context) {
-        sharedPreferences = context.getSharedPreferences("points_tracker", Context.MODE_PRIVATE)
-        _points.value = sharedPreferences.getInt("total_points", 0)
+    private val _threshold = MutableStateFlow(DEFAULT_THRESHOLD)
+    val threshold = _threshold.asStateFlow()
 
-        // Listen for changes in SharedPreferences to keep the flow updated
-        sharedPreferences.registerOnSharedPreferenceChangeListener { _, key ->
-            if (key == "total_points") {
-                _points.value = sharedPreferences.getInt("total_points", 0)
+    // The synchronized block ensures thread-safety during initialization
+    fun initialize(context: Context) {
+        synchronized(this) {
+            if (sharedPreferences == null) {
+                sharedPreferences = context.applicationContext.getSharedPreferences(
+                    "points_tracker",
+                    Context.MODE_PRIVATE
+                )
+                loadInitialValues()
+                registerListener()
             }
         }
     }
 
-    fun getPoints(): Int {
-        return sharedPreferences.getInt("total_points", 0)
+    private fun loadInitialValues() {
+        val prefs = getPrefs() // Use a helper to get a non-null reference
+        _points.value = prefs.getInt(KEY_POINTS, 0)
+        _threshold.value = prefs.getInt(KEY_THRESHOLD, DEFAULT_THRESHOLD)
     }
 
-    fun addPoints(newPoints: Int): Int {
-        val currentPoints = sharedPreferences.getInt("total_points", 0)
-        val newTotal = currentPoints + newPoints
+    private fun registerListener() {
+        getPrefs().registerOnSharedPreferenceChangeListener { _, key ->
+            when (key) {
+                KEY_POINTS -> _points.value = getPrefs().getInt(KEY_POINTS, 0)
+                KEY_THRESHOLD -> _threshold.value =
+                    getPrefs().getInt(KEY_THRESHOLD, DEFAULT_THRESHOLD)
+            }
+        }
+    }
 
-        sharedPreferences.edit {
-            putInt("total_points", newTotal)
+    private fun getPrefs(): SharedPreferences {
+        return sharedPreferences
+            ?: throw IllegalStateException("PointsRepository must be initialized")
+    }
+
+
+    fun addPoints(newPoints: Int): Int {
+        val newTotal = getPoints() + newPoints
+
+        getPrefs().edit {
+            putInt(KEY_POINTS, newTotal)
         }
         return newTotal;
     }
+
     fun resetPoints() {
-        sharedPreferences.edit {
-            putInt("total_points",0)
+        getPrefs().edit {
+            putInt("total_points", 0)
+        }
+    }
+
+    fun getPoints(): Int {
+        return getPrefs().getInt(KEY_POINTS, 0)
+    }
+
+    fun getThreshold(): Int {
+        return _threshold.value
+    }
+
+    fun setThreshold(newThreshold: Int) {
+        getPrefs().edit {
+            putInt(KEY_THRESHOLD, newThreshold)
         }
     }
 }

@@ -1,7 +1,6 @@
 package com.galtagency.pointstracker
 
 import android.app.Application
-import com.galtagency.pointstrackerimport.PointsRepository
 
 
 class PointsTrackerApp : Application() {
