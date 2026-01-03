@@ -8,6 +8,7 @@ import android.provider.Settings
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
+import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -95,11 +96,12 @@ fun MainScreen(
 
     val currentPoints = pointsText.toIntOrNull() ?: 0
     val currentThreshold = thresholdText.toIntOrNull()?.takeIf { it > 0 } ?: 1
-    val progress =
-        (currentPoints.toFloat() / currentThreshold.toFloat()).coerceIn(
-            0f,
-            1f
-        )
+    val progressTarget = (currentPoints.toFloat() / currentThreshold.toFloat()).coerceIn(0f, 1f)
+
+    val animatedProgress by animateFloatAsState(
+        targetValue = progressTarget,
+        label = "progressAnimation"
+    )
 
     Column(
         modifier = modifier
@@ -109,12 +111,12 @@ fun MainScreen(
         verticalArrangement = Arrangement.Center
     ) {
         Text(
-            text = "$points",
+            text = "$currentPoints",
             style = MaterialTheme.typography.displayLarge, // Bigger, more prominent text
             color = MaterialTheme.colorScheme.primary
         )
 
-        val pointsPlural = if (points == 1) "point" else "points"
+        val pointsPlural = if (currentPoints == 1) "point" else "points"
         Text(
             text = "Accumulated $pointsPlural",
             style = MaterialTheme.typography.bodyLarge
@@ -129,13 +131,13 @@ fun MainScreen(
             contentAlignment = Alignment.Center
         ) {
             LinearProgressIndicator(
-                progress = { progress },
+                progress = { animatedProgress },
                 modifier = Modifier.fillMaxSize(),
                 strokeCap = StrokeCap.Butt // Rectangular progress bar
             )
             Text(
-                text = "${(progress * 100).toInt()}%",
-                color = MaterialTheme.colorScheme.background,
+                text = "${(animatedProgress * 100).toInt()}%",
+                color = MaterialTheme.colorScheme.onPrimary,
                 style = MaterialTheme.typography.bodyMedium
             )
         }
@@ -190,6 +192,6 @@ fun MainScreenPreview() {
             threshold = 1000,
             onThresholdChange = {},
             onResetClick = {},
-            onPointsChange = {})
+            onPointsChange = { })
     }
 }

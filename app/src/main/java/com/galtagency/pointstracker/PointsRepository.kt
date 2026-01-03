@@ -9,7 +9,6 @@ import kotlinx.coroutines.flow.asStateFlow
 
 object PointsRepository {
 
-
     private var sharedPreferences: SharedPreferences? = null
 
     private const val KEY_POINTS = "total_points"
