@@ -1,37 +1,46 @@
 package com.galtagency.pointstracker
 
 import android.app.Application
+import android.util.Log
+import androidx.work.Configuration
 import androidx.work.ExistingPeriodicWorkPolicy
 import androidx.work.PeriodicWorkRequestBuilder
 import androidx.work.WorkManager
 import java.util.Calendar
 import java.util.concurrent.TimeUnit
 
+class PointsApplication : Application(), Configuration.Provider {
 
-class PointsApplication : Application() {
+    private val TAG = "PointsApplication"
+
+
+    override val workManagerConfiguration: Configuration
+        get() = Configuration.Builder()
+            .setMinimumLoggingLevel(Log.INFO)
+            .build()
 
     override fun onCreate() {
         super.onCreate()
+        Log.v(TAG, "onCreate called.")
         scheduleDailyNotificationWorker()
     }
 
     private fun scheduleDailyNotificationWorker() {
-        WorkManager.getInstance(applicationContext)
-
-        // Calculate the time until the desired start time (6:00 AM)
+        Log.v(TAG, "Scheduling daily notification worker.")
+        // Calculate the time until the desired start time (e.g., 11:30:20)
         val now = Calendar.getInstance()
-        val desiredTime = Calendar.getInstance().apply {
+        val desiredTimeOfDay = Calendar.getInstance().apply {
             set(Calendar.HOUR_OF_DAY, 6)
             set(Calendar.MINUTE, 0)
             set(Calendar.SECOND, 0)
 
-            // If the desired time has already passed today, set it for tomorrow
             if (before(now)) {
                 add(Calendar.DAY_OF_MONTH, 1)
             }
         }
 
-        val initialDelay = desiredTime.timeInMillis - now.timeInMillis
+        val initialDelay = desiredTimeOfDay.timeInMillis - now.timeInMillis
+        Log.v(TAG, "Initial delay for worker: $initialDelay ms")
 
         val dailyWorkRequest = PeriodicWorkRequestBuilder<NotificationWorker>(
             24, TimeUnit.HOURS
@@ -41,8 +50,9 @@ class PointsApplication : Application() {
 
         WorkManager.getInstance(this).enqueueUniquePeriodicWork(
             "daily_notification_worker",
-            ExistingPeriodicWorkPolicy.KEEP,
+            ExistingPeriodicWorkPolicy.REPLACE,
             dailyWorkRequest
         )
+        Log.v(TAG, "Daily notification worker enqueued.")
     }
 }
