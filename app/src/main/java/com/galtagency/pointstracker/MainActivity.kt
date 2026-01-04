@@ -16,6 +16,7 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.Button
@@ -32,10 +33,15 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.StrokeCap
+import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import com.galtagency.pointstracker.ui.theme.PointsTrackerTheme
 
 
@@ -119,12 +125,70 @@ fun MainScreen(
             LinearProgressIndicator(
                 progress = { animatedProgress },
                 modifier = Modifier.fillMaxSize(),
-                strokeCap = StrokeCap.Butt // Rectangular progress bar
+                strokeCap = StrokeCap.Butt
+            )
+
+            val percentText = "${(animatedProgress * 100).toInt()}%"
+            val textStyle = MaterialTheme.typography.bodyLarge.copy(
+                fontWeight = FontWeight.Bold
+            )
+            val outlineColor = MaterialTheme.colorScheme.secondaryContainer
+
+            // Create outline by drawing text in 8 directions
+            Text(
+                text = percentText,
+                color = outlineColor,
+                style = textStyle,
+                modifier = Modifier.offset(x = (-1).dp, y = (-1).dp)
             )
             Text(
-                text = "${(animatedProgress * 100).toInt()}%",
-                color = MaterialTheme.colorScheme.onPrimary,
-                style = MaterialTheme.typography.bodyMedium
+                text = percentText,
+                color = outlineColor,
+                style = textStyle,
+                modifier = Modifier.offset(x = 0.dp, y = (-1).dp)
+            )
+            Text(
+                text = percentText,
+                color = outlineColor,
+                style = textStyle,
+                modifier = Modifier.offset(x = 1.dp, y = (-1).dp)
+            )
+            Text(
+                text = percentText,
+                color = outlineColor,
+                style = textStyle,
+                modifier = Modifier.offset(x = (-1).dp, y = 0.dp)
+            )
+            Text(
+                text = percentText,
+                color = outlineColor,
+                style = textStyle,
+                modifier = Modifier.offset(x = 1.dp, y = 0.dp)
+            )
+            Text(
+                text = percentText,
+                color = outlineColor,
+                style = textStyle,
+                modifier = Modifier.offset(x = (-1).dp, y = 1.dp)
+            )
+            Text(
+                text = percentText,
+                color = outlineColor,
+                style = textStyle,
+                modifier = Modifier.offset(x = 0.dp, y = 1.dp)
+            )
+            Text(
+                text = percentText,
+                color = outlineColor,
+                style = textStyle,
+                modifier = Modifier.offset(x = 1.dp, y = 1.dp)
+            )
+
+            // Main text on top
+            Text(
+                text = percentText,
+                color = MaterialTheme.colorScheme.primary,
+                style = textStyle
             )
         }
 
