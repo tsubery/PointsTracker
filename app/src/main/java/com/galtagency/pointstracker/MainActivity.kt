@@ -108,26 +108,12 @@ fun MainScreen(
             .fillMaxSize()
             .padding(32.dp), // Increased padding
         horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.Center
+        verticalArrangement = Arrangement.SpaceAround
     ) {
-        Text(
-            text = "$currentPoints",
-            style = MaterialTheme.typography.displayLarge, // Bigger, more prominent text
-            color = MaterialTheme.colorScheme.primary
-        )
-
-        val pointsPlural = if (currentPoints == 1) "point" else "points"
-        Text(
-            text = "Accumulated $pointsPlural",
-            style = MaterialTheme.typography.bodyLarge
-        )
-
-        Spacer(modifier = Modifier.height(16.dp))
-
         Box(
             modifier = Modifier
                 .fillMaxWidth()
-                .height(32.dp),
+                .height(64.dp),
             contentAlignment = Alignment.Center
         ) {
             LinearProgressIndicator(
@@ -142,7 +128,22 @@ fun MainScreen(
             )
         }
 
-        Spacer(modifier = Modifier.height(32.dp)) // More space
+        Text(
+            text = "$currentPoints",
+            style = MaterialTheme.typography.displayLarge, // Bigger, more prominent text
+            color = MaterialTheme.colorScheme.primary
+        )
+
+        val pointsPlural = if (currentPoints == 1) "point" else "points"
+        Text(
+            text = "Accumulated $pointsPlural since last notification",
+            style = MaterialTheme.typography.bodyLarge
+        )
+
+        Spacer(modifier = Modifier.height(16.dp))
+
+
+
         OutlinedTextField(
             value = pointsText,
             onValueChange = { newText ->
@@ -180,6 +181,7 @@ fun MainScreen(
         ) {
             Text("Reset Points")
         }
+
     }
 }
 
