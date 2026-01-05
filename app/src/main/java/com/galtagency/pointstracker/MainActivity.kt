@@ -33,7 +33,9 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Shadow
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
@@ -52,7 +54,6 @@ class MainActivity : ComponentActivity() {
         if (!isNotificationServiceEnabled()) {
             startActivity(Intent(Settings.ACTION_NOTIFICATION_LISTENER_SETTINGS))
         }
-        PointsRepository.initialize(applicationContext)
         enableEdgeToEdge()
         setContent {
             PointsTrackerTheme {
@@ -129,62 +130,16 @@ fun MainScreen(
             )
 
             val percentText = "${(animatedProgress * 100).toInt()}%"
-            val textStyle = MaterialTheme.typography.bodyLarge.copy(
-                fontWeight = FontWeight.Bold
-            )
             val outlineColor = MaterialTheme.colorScheme.secondaryContainer
-
-            // Create outline by drawing text in 8 directions
-            Text(
-                text = percentText,
-                color = outlineColor,
-                style = textStyle,
-                modifier = Modifier.offset(x = (-1).dp, y = (-1).dp)
-            )
-            Text(
-                text = percentText,
-                color = outlineColor,
-                style = textStyle,
-                modifier = Modifier.offset(x = 0.dp, y = (-1).dp)
-            )
-            Text(
-                text = percentText,
-                color = outlineColor,
-                style = textStyle,
-                modifier = Modifier.offset(x = 1.dp, y = (-1).dp)
-            )
-            Text(
-                text = percentText,
-                color = outlineColor,
-                style = textStyle,
-                modifier = Modifier.offset(x = (-1).dp, y = 0.dp)
-            )
-            Text(
-                text = percentText,
-                color = outlineColor,
-                style = textStyle,
-                modifier = Modifier.offset(x = 1.dp, y = 0.dp)
-            )
-            Text(
-                text = percentText,
-                color = outlineColor,
-                style = textStyle,
-                modifier = Modifier.offset(x = (-1).dp, y = 1.dp)
-            )
-            Text(
-                text = percentText,
-                color = outlineColor,
-                style = textStyle,
-                modifier = Modifier.offset(x = 0.dp, y = 1.dp)
-            )
-            Text(
-                text = percentText,
-                color = outlineColor,
-                style = textStyle,
-                modifier = Modifier.offset(x = 1.dp, y = 1.dp)
+            val textStyle = MaterialTheme.typography.bodyLarge.copy(
+                fontWeight = FontWeight.Bold,
+                shadow = Shadow(
+                    color = outlineColor,
+                    offset = Offset(2f, 2f),
+                    blurRadius = 4f
+                )
             )
 
-            // Main text on top
             Text(
                 text = percentText,
                 color = MaterialTheme.colorScheme.primary,
