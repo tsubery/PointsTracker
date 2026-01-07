@@ -18,7 +18,6 @@ class NotificationWorker(appContext: Context, workerParams: WorkerParameters) :
     override suspend fun doWork(): Result {
         Log.v(TAG, "doWork started")
 
-        PointsRepository.initialize(applicationContext)
         val points = PointsRepository.getPoints()
         val threshold = PointsRepository.getThreshold()
         Log.v(TAG, "Current points: $points, Threshold: $threshold")

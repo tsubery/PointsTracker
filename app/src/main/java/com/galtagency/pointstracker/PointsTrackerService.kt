@@ -13,7 +13,6 @@ class PointsTrackerService : NotificationListenerService() {
 
     override fun onCreate() {
         super.onCreate()
-        PointsRepository.initialize(applicationContext)
     }
 
     override fun onNotificationPosted(sbn: StatusBarNotification) {

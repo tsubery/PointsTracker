@@ -21,6 +21,7 @@ class PointsApplication : Application(), Configuration.Provider {
 
     override fun onCreate() {
         super.onCreate()
+        PointsRepository.initialize(applicationContext)
         Log.v(TAG, "onCreate called.")
         scheduleDailyNotificationWorker()
     }
