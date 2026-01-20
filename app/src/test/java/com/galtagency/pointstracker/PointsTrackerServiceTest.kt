@@ -48,9 +48,25 @@ class PointsTrackerServiceTest {
     }
 
     @Test
+    fun `parsePointsFromNotification should handle numbers with large number text`() {
+        val notificationText = "Your daily reward is (+7,000005 points)."
+        val expectedPoints = 7000005
+        val actualPoints = service.parsePointsFromNotification(notificationText)
+        assertEquals(expectedPoints, actualPoints)
+    }
+
+    @Test
     fun `parsePointsFromNotification should handle single-digit points`() {
         val notificationText = "You got (+5 points)."
         val expectedPoints = 5
+        val actualPoints = service.parsePointsFromNotification(notificationText)
+        assertEquals(expectedPoints, actualPoints)
+    }
+
+    @Test
+    fun `parsePointsFromNotification should handle single-digit negative points`() {
+        val notificationText = "You got (-5 points)."
+        val expectedPoints = -5
         val actualPoints = service.parsePointsFromNotification(notificationText)
         assertEquals(expectedPoints, actualPoints)
     }
