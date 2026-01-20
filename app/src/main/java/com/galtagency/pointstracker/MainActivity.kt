@@ -36,10 +36,20 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Shadow
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.TextRange
 import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.text.input.TextFieldValue
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import com.galtagency.pointstracker.ui.theme.PointsTrackerTheme
+import java.text.NumberFormat
+import java.util.Locale
+
+private fun formatWithCommas(value: Int): String =
+    NumberFormat.getNumberInstance(Locale.US).format(value)
+
+private fun parseWithCommas(text: String): Int? =
+    text.replace(",", "").toIntOrNull()
 
 
 class MainActivity : ComponentActivity() {
@@ -93,11 +103,17 @@ fun MainScreen(
     onResetClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
-    var thresholdText by remember(threshold) { mutableStateOf(threshold.toString()) }
-    var pointsText by remember(points) { mutableStateOf(points.toString()) }
+    var thresholdText by remember(threshold) {
+        val text = formatWithCommas(threshold)
+        mutableStateOf(TextFieldValue(text, TextRange(text.length)))
+    }
+    var pointsText by remember(points) {
+        val text = formatWithCommas(points)
+        mutableStateOf(TextFieldValue(text, TextRange(text.length)))
+    }
 
-    val currentPoints = pointsText.toIntOrNull() ?: 0
-    val currentThreshold = thresholdText.toIntOrNull()?.takeIf { it > 0 } ?: 1
+    val currentPoints = parseWithCommas(pointsText.text) ?: 0
+    val currentThreshold = parseWithCommas(thresholdText.text)?.takeIf { it > 0 } ?: 1
     val progressTarget = (currentPoints.toFloat() / currentThreshold.toFloat()).coerceIn(0f, 1f)
 
     val animatedProgress by animateFloatAsState(
@@ -143,7 +159,7 @@ fun MainScreen(
         }
 
         Text(
-            text = "$currentPoints",
+            text = formatWithCommas(currentPoints),
             style = MaterialTheme.typography.displayLarge, // Bigger, more prominent text
             color = MaterialTheme.colorScheme.primary
         )
@@ -160,11 +176,18 @@ fun MainScreen(
 
         OutlinedTextField(
             value = pointsText,
-            onValueChange = { newText ->
-                if (newText.all { it.isDigit() }) {
-                    pointsText = newText
-                    newText.toIntOrNull()?.let {
-                        onPointsChange(it)
+            onValueChange = { newValue ->
+                val newText = newValue.text
+                if (newText.all { it.isDigit() || it == ',' }) {
+                    if (newText.isEmpty()) {
+                        pointsText = TextFieldValue("", TextRange(0))
+                    } else {
+                        parseWithCommas(newText)?.let { parsed ->
+                            val formatted = formatWithCommas(parsed)
+                            val cursorPos = formatted.length
+                            pointsText = TextFieldValue(formatted, TextRange(cursorPos))
+                            onPointsChange(parsed)
+                        }
                     }
                 }
             },
@@ -174,11 +197,18 @@ fun MainScreen(
         )
         OutlinedTextField(
             value = thresholdText,
-            onValueChange = { newText ->
-                if (newText.all { it.isDigit() }) {
-                    thresholdText = newText
-                    newText.toIntOrNull()?.let {
-                        onThresholdChange(it)
+            onValueChange = { newValue ->
+                val newText = newValue.text
+                if (newText.all { it.isDigit() || it == ',' }) {
+                    if (newText.isEmpty()) {
+                        thresholdText = TextFieldValue("", TextRange(0))
+                    } else {
+                        parseWithCommas(newText)?.let { parsed ->
+                            val formatted = formatWithCommas(parsed)
+                            val cursorPos = formatted.length
+                            thresholdText = TextFieldValue(formatted, TextRange(cursorPos))
+                            onThresholdChange(parsed)
+                        }
                     }
                 }
             },
