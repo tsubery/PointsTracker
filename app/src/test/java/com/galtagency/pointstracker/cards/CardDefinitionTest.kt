@@ -63,12 +63,12 @@ class CardDefinitionTest {
 
     @Test
     fun `Robinhood parseNotification handles large positive numbers`() {
-        assertEquals(999999, CardDefinition.Robinhood.parseNotification("(+999999 points)"))
+        assertEquals(999999, CardDefinition.Robinhood.parseNotification("(+999,999 points)"))
     }
 
     @Test
     fun `Robinhood parseNotification handles large negative numbers`() {
-        assertEquals(-500000, CardDefinition.Robinhood.parseNotification("(-500000 points)"))
+        assertEquals(-5000000, CardDefinition.Robinhood.parseNotification("(-5,000,000 points)"))
     }
 
     @Test

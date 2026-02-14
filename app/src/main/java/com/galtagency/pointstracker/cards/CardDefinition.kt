@@ -54,7 +54,7 @@ sealed class CardDefinition(
         displayName = "Chase",
         packageName = "com.chase.sig.android",
         valueType = ValueType.DOLLARS,
-        defaultThreshold = 50000,
+        defaultThreshold = 30000,
         notificationPattern = Pattern.compile("\\$(\\d+(?:,\\d{3})*\\.\\d{2})")
     ) {
         override fun parseNotification(text: String): Int {
@@ -62,8 +62,7 @@ sealed class CardDefinition(
             if (!matcher.find()) return 0
 
             val amountStr = matcher.group(1)?.replace(",", "") ?: return 0
-            val dollars = amountStr.toDoubleOrNull() ?: return 0
-            return (dollars * 100).toInt()
+            return amountStr.replace(".", "").toIntOrNull() ?: 0
         }
     }
 

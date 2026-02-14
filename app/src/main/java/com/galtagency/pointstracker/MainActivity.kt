@@ -1,12 +1,16 @@
 package com.galtagency.pointstracker
 
+import android.Manifest
 import android.content.ComponentName
 import android.content.Intent
+import android.content.pm.PackageManager
+import android.os.Build
 import android.os.Bundle
 import android.provider.Settings
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -65,22 +69,21 @@ private fun formatDollars(cents: Int): String {
 private fun parseDollars(text: String): Int? {
     val cleaned = text.replace(",", "")
     val parts = cleaned.split(".")
-    return when (parts.size) {
-        1 -> parts[0].toIntOrNull()?.let { it * 100 }
-        2 -> {
-            val dollars = parts[0].toIntOrNull() ?: return null
-            val centsStr = parts[1].padEnd(2, '0').take(2)
-            val cents = centsStr.toIntOrNull() ?: return null
-            dollars * 100 + cents
-        }
-        else -> null
-    }
+    if (parts.size > 2) return null
+
+    val dollars = parts[0]
+    val cents = parts.getOrNull(1)?.padEnd(2, '0')?.take(2) ?: "00"
+    return "$dollars$cents".toIntOrNull()
 }
 
 class MainActivity : ComponentActivity() {
 
+    private val requestNotificationsPermissionLauncher =
+        registerForActivityResult(ActivityResultContracts.RequestPermission()) { }
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        requestNotificationPermissionIfNeeded()
         if (!isNotificationServiceEnabled()) {
             startActivity(Intent(Settings.ACTION_NOTIFICATION_LISTENER_SETTINGS))
         }
@@ -108,6 +111,16 @@ class MainActivity : ComponentActivity() {
         return enabledListeners?.split(":")?.map {
             ComponentName.unflattenFromString(it)
         }?.any { it == componentName } ?: false
+    }
+
+    private fun requestNotificationPermissionIfNeeded() {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU) return
+        if (checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS) ==
+            PackageManager.PERMISSION_GRANTED
+        ) {
+            return
+        }
+        requestNotificationsPermissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
     }
 }
 
@@ -178,11 +191,11 @@ fun CardWidgetContent(
 ) {
     val isDollars = card.valueType == ValueType.DOLLARS
 
-    var valueText by remember(if (isDollars) Unit else value) {
+    var valueText by remember(value, isDollars) {
         val text = if (isDollars) formatDollars(value) else formatWithCommas(value)
         mutableStateOf(TextFieldValue(text, TextRange(text.length)))
     }
-    var thresholdText by remember(if (isDollars) Unit else threshold) {
+    var thresholdText by remember(threshold, isDollars) {
         val text = if (isDollars) formatDollars(threshold) else formatWithCommas(threshold)
         mutableStateOf(TextFieldValue(text, TextRange(text.length)))
     }
@@ -286,7 +299,7 @@ fun CardWidgetContent(
             label = {
                 Text(if (isDollars) "Set Amount" else "Set Points")
             },
-            prefix = if (isDollars) {{ Text("$") }} else null,
+            prefix = if (isDollars) { { Text("$") } } else null,
             keyboardOptions = KeyboardOptions(
                 keyboardType = if (isDollars) KeyboardType.Decimal else KeyboardType.Number
             ),
@@ -320,7 +333,7 @@ fun CardWidgetContent(
                 }
             },
             label = { Text("Set Notification Threshold") },
-            prefix = if (isDollars) {{ Text("$") }} else null,
+            prefix = if (isDollars) { { Text("$") } } else null,
             keyboardOptions = KeyboardOptions(
                 keyboardType = if (isDollars) KeyboardType.Decimal else KeyboardType.Number
             ),

@@ -72,15 +72,19 @@ object PointsRepository {
     }
 
     fun addCardValue(cardId: String, amount: Int): Int {
-        val newTotal = getCardValueInt(cardId) + amount
-        setCardValue(cardId, newTotal)
-        return newTotal
+        synchronized(this) {
+            val newTotal = getCardValueInt(cardId) + amount
+            setCardValue(cardId, newTotal)
+            return newTotal
+        }
     }
 
     fun setCardValue(cardId: String, value: Int) {
-        _values[cardId]?.let { it.value = value }
-        getPrefs().edit {
-            putInt(valueKey(cardId), value)
+        synchronized(this) {
+            _values[cardId]?.let { it.value = value }
+            getPrefs().edit {
+                putInt(valueKey(cardId), value)
+            }
         }
     }
 
@@ -99,9 +103,11 @@ object PointsRepository {
     }
 
     fun setCardThreshold(cardId: String, threshold: Int) {
-        _thresholds[cardId]?.let { it.value = threshold }
-        getPrefs().edit {
-            putInt(thresholdKey(cardId), threshold)
+        synchronized(this) {
+            _thresholds[cardId]?.let { it.value = threshold }
+            getPrefs().edit {
+                putInt(thresholdKey(cardId), threshold)
+            }
         }
     }
 }
