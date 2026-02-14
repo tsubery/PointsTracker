@@ -1,6 +1,5 @@
 package com.galtagency.pointstracker
 
-// ... other imports
 import android.content.ComponentName
 import android.content.Intent
 import android.os.Bundle
@@ -17,8 +16,11 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
+import androidx.compose.material3.Card
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
@@ -35,12 +37,15 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Shadow
 import androidx.compose.ui.graphics.StrokeCap
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.TextRange
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.TextFieldValue
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
+import com.galtagency.pointstracker.cards.CardDefinition
+import com.galtagency.pointstracker.cards.CardDetector
+import com.galtagency.pointstracker.cards.ValueType
 import com.galtagency.pointstracker.ui.theme.PointsTrackerTheme
 import java.text.NumberFormat
 import java.util.Locale
@@ -51,6 +56,26 @@ private fun formatWithCommas(value: Int): String =
 private fun parseWithCommas(text: String): Int? =
     text.replace(",", "").toIntOrNull()
 
+private fun formatDollars(cents: Int): String {
+    val dollars = cents / 100
+    val remainingCents = cents % 100
+    return "${formatWithCommas(dollars)}.${"%02d".format(remainingCents)}"
+}
+
+private fun parseDollars(text: String): Int? {
+    val cleaned = text.replace(",", "")
+    val parts = cleaned.split(".")
+    return when (parts.size) {
+        1 -> parts[0].toIntOrNull()?.let { it * 100 }
+        2 -> {
+            val dollars = parts[0].toIntOrNull() ?: return null
+            val centsStr = parts[1].padEnd(2, '0').take(2)
+            val cents = centsStr.toIntOrNull() ?: return null
+            dollars * 100 + cents
+        }
+        else -> null
+    }
+}
 
 class MainActivity : ComponentActivity() {
 
@@ -60,22 +85,15 @@ class MainActivity : ComponentActivity() {
             startActivity(Intent(Settings.ACTION_NOTIFICATION_LISTENER_SETTINGS))
         }
         enableEdgeToEdge()
+
+        val detector = CardDetector(packageManager)
+        val installedCards = detector.detectInstalledCards()
+
         setContent {
             PointsTrackerTheme {
-                val currentPoints by PointsRepository.points.collectAsState()
-                val currentThreshold by PointsRepository.threshold.collectAsState()
-
                 Scaffold(modifier = Modifier.fillMaxSize()) { innerPadding ->
-                    MainScreen(
-                        points = currentPoints,
-                        threshold = currentThreshold,
-                        onThresholdChange = { newThreshold ->
-                            PointsRepository.setThreshold(newThreshold)
-                        },
-                        onPointsChange = { newPoints ->
-                            PointsRepository.setPoints(newPoints)
-                        },
-                        onResetClick = { PointsRepository.resetPoints() },
+                    MultiCardScreen(
+                        installedCards = installedCards,
                         modifier = Modifier.padding(innerPadding)
                     )
                 }
@@ -93,45 +111,121 @@ class MainActivity : ComponentActivity() {
     }
 }
 
+@Composable
+fun MultiCardScreen(
+    installedCards: List<CardDefinition>,
+    modifier: Modifier = Modifier
+) {
+    Column(
+        modifier = modifier
+            .fillMaxSize()
+            .padding(16.dp)
+            .verticalScroll(rememberScrollState()),
+        verticalArrangement = Arrangement.spacedBy(16.dp)
+    ) {
+        Text(
+            text = "PointsTracker",
+            style = MaterialTheme.typography.headlineLarge,
+            color = MaterialTheme.colorScheme.primary,
+            modifier = Modifier.padding(bottom = 8.dp)
+        )
+
+        if (installedCards.isEmpty()) {
+            Text(
+                text = "No supported card apps detected",
+                style = MaterialTheme.typography.bodyLarge,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+        } else {
+            for (card in installedCards) {
+                CardWidget(card = card)
+            }
+        }
+    }
+}
 
 @Composable
-fun MainScreen(
-    points: Int,
+fun CardWidget(
+    card: CardDefinition,
+    modifier: Modifier = Modifier
+) {
+    val currentValue by PointsRepository.getCardValue(card.id).collectAsState()
+    val currentThreshold by PointsRepository.getCardThreshold(card.id).collectAsState()
+
+    Card(
+        modifier = modifier.fillMaxWidth()
+    ) {
+        CardWidgetContent(
+            card = card,
+            value = currentValue,
+            threshold = currentThreshold,
+            onValueChange = { PointsRepository.setCardValue(card.id, it) },
+            onThresholdChange = { PointsRepository.setCardThreshold(card.id, it) },
+            onResetClick = { PointsRepository.resetCard(card.id) }
+        )
+    }
+}
+
+@Composable
+fun CardWidgetContent(
+    card: CardDefinition,
+    value: Int,
     threshold: Int,
+    onValueChange: (Int) -> Unit,
     onThresholdChange: (Int) -> Unit,
-    onPointsChange: (Int) -> Unit,
     onResetClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
-    var thresholdText by remember(threshold) {
-        val text = formatWithCommas(threshold)
+    val isDollars = card.valueType == ValueType.DOLLARS
+
+    var valueText by remember(if (isDollars) Unit else value) {
+        val text = if (isDollars) formatDollars(value) else formatWithCommas(value)
         mutableStateOf(TextFieldValue(text, TextRange(text.length)))
     }
-    var pointsText by remember(points) {
-        val text = formatWithCommas(points)
+    var thresholdText by remember(if (isDollars) Unit else threshold) {
+        val text = if (isDollars) formatDollars(threshold) else formatWithCommas(threshold)
         mutableStateOf(TextFieldValue(text, TextRange(text.length)))
     }
 
-    val currentPoints = parseWithCommas(pointsText.text) ?: 0
-    val currentThreshold = parseWithCommas(thresholdText.text)?.takeIf { it > 0 } ?: 1
-    val progressTarget = (currentPoints.toFloat() / currentThreshold.toFloat()).coerceIn(0f, 1f)
+    val currentValue = if (isDollars) {
+        parseDollars(valueText.text) ?: 0
+    } else {
+        parseWithCommas(valueText.text) ?: 0
+    }
+    val currentThreshold = if (isDollars) {
+        (parseDollars(thresholdText.text) ?: 1).coerceAtLeast(1)
+    } else {
+        (parseWithCommas(thresholdText.text) ?: 1).coerceAtLeast(1)
+    }
 
+    val progressTarget = (currentValue.toFloat() / currentThreshold.toFloat()).coerceIn(0f, 1f)
     val animatedProgress by animateFloatAsState(
         targetValue = progressTarget,
         label = "progressAnimation"
     )
 
+    val valueLabel = if (isDollars) {
+        "$${formatDollars(currentValue)} / $${formatDollars(currentThreshold)}"
+    } else {
+        val pointsPlural = if (currentValue == 1) "point" else "points"
+        "${formatWithCommas(currentValue)} / ${formatWithCommas(currentThreshold)} $pointsPlural"
+    }
+
     Column(
-        modifier = modifier
-            .fillMaxSize()
-            .padding(32.dp), // Increased padding
+        modifier = modifier.padding(16.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.SpaceAround
+        verticalArrangement = Arrangement.spacedBy(12.dp)
     ) {
+        Text(
+            text = card.displayName,
+            style = MaterialTheme.typography.titleLarge,
+            color = MaterialTheme.colorScheme.primary
+        )
+
         Box(
             modifier = Modifier
                 .fillMaxWidth()
-                .height(64.dp),
+                .height(48.dp),
             contentAlignment = Alignment.Center
         ) {
             LinearProgressIndicator(
@@ -159,85 +253,115 @@ fun MainScreen(
         }
 
         Text(
-            text = formatWithCommas(currentPoints),
-            style = MaterialTheme.typography.displayLarge, // Bigger, more prominent text
-            color = MaterialTheme.colorScheme.primary
-        )
-
-        val pointsPlural = if (currentPoints == 1) "point" else "points"
-        Text(
-            text = "Accumulated $pointsPlural since last notification",
+            text = valueLabel,
             style = MaterialTheme.typography.bodyLarge
         )
 
-        Spacer(modifier = Modifier.height(16.dp))
-
-
-
         OutlinedTextField(
-            value = pointsText,
+            value = valueText,
             onValueChange = { newValue ->
                 val newText = newValue.text
-                if (newText.all { it.isDigit() || it == ',' }) {
+                val allowedChars = if (isDollars) {
+                    newText.all { it.isDigit() || it == ',' || it == '.' }
+                } else {
+                    newText.all { it.isDigit() || it == ',' }
+                }
+                if (allowedChars) {
                     if (newText.isEmpty()) {
-                        pointsText = TextFieldValue("", TextRange(0))
+                        valueText = TextFieldValue("", TextRange(0))
+                    } else if (isDollars) {
+                        parseDollars(newText)?.let { parsed ->
+                            valueText = newValue
+                            onValueChange(parsed)
+                        }
                     } else {
                         parseWithCommas(newText)?.let { parsed ->
                             val formatted = formatWithCommas(parsed)
-                            val cursorPos = formatted.length
-                            pointsText = TextFieldValue(formatted, TextRange(cursorPos))
-                            onPointsChange(parsed)
+                            valueText = TextFieldValue(formatted, TextRange(formatted.length))
+                            onValueChange(parsed)
                         }
                     }
                 }
             },
-            label = { Text("Set Points") },
-            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+            label = {
+                Text(if (isDollars) "Set Amount" else "Set Points")
+            },
+            prefix = if (isDollars) {{ Text("$") }} else null,
+            keyboardOptions = KeyboardOptions(
+                keyboardType = if (isDollars) KeyboardType.Decimal else KeyboardType.Number
+            ),
             modifier = Modifier.fillMaxWidth()
         )
+
         OutlinedTextField(
             value = thresholdText,
             onValueChange = { newValue ->
                 val newText = newValue.text
-                if (newText.all { it.isDigit() || it == ',' }) {
+                val allowedChars = if (isDollars) {
+                    newText.all { it.isDigit() || it == ',' || it == '.' }
+                } else {
+                    newText.all { it.isDigit() || it == ',' }
+                }
+                if (allowedChars) {
                     if (newText.isEmpty()) {
                         thresholdText = TextFieldValue("", TextRange(0))
+                    } else if (isDollars) {
+                        parseDollars(newText)?.let { parsed ->
+                            thresholdText = newValue
+                            onThresholdChange(parsed)
+                        }
                     } else {
                         parseWithCommas(newText)?.let { parsed ->
                             val formatted = formatWithCommas(parsed)
-                            val cursorPos = formatted.length
-                            thresholdText = TextFieldValue(formatted, TextRange(cursorPos))
+                            thresholdText = TextFieldValue(formatted, TextRange(formatted.length))
                             onThresholdChange(parsed)
                         }
                     }
                 }
             },
             label = { Text("Set Notification Threshold") },
-            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+            prefix = if (isDollars) {{ Text("$") }} else null,
+            keyboardOptions = KeyboardOptions(
+                keyboardType = if (isDollars) KeyboardType.Decimal else KeyboardType.Number
+            ),
             modifier = Modifier.fillMaxWidth()
         )
-
-        Spacer(modifier = Modifier.height(16.dp))
 
         Button(
             onClick = onResetClick,
             modifier = Modifier.fillMaxWidth()
         ) {
-            Text("Reset Points")
+            Text(if (isDollars) "Reset Amount" else "Reset Points")
         }
-
     }
 }
 
 @Preview(showBackground = true)
 @Composable
-fun MainScreenPreview() {
+fun CardWidgetPreview() {
     PointsTrackerTheme {
-        MainScreen(
-            points = 150,
-            threshold = 1000,
+        CardWidgetContent(
+            card = CardDefinition.Robinhood,
+            value = 7500,
+            threshold = 10000,
+            onValueChange = {},
             onThresholdChange = {},
-            onResetClick = {},
-            onPointsChange = { })
+            onResetClick = {}
+        )
+    }
+}
+
+@Preview(showBackground = true)
+@Composable
+fun CardWidgetDollarsPreview() {
+    PointsTrackerTheme {
+        CardWidgetContent(
+            card = CardDefinition.Chase,
+            value = 26050,
+            threshold = 50000,
+            onValueChange = {},
+            onThresholdChange = {},
+            onResetClick = {}
+        )
     }
 }

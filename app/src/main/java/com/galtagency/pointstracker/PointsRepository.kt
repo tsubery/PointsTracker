@@ -1,32 +1,30 @@
 package com.galtagency.pointstracker
 
-
 import android.content.Context
 import android.content.SharedPreferences
 import androidx.core.content.edit
+import com.galtagency.pointstracker.cards.CardDefinition
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 
 object PointsRepository {
 
     private var sharedPreferences: SharedPreferences? = null
 
-    private const val KEY_POINTS = "total_points"
-    private const val KEY_THRESHOLD = "points_threshold"
-    private const val DEFAULT_THRESHOLD = 10000
+    private const val PREFS_NAME = "points_tracker"
 
-    private val _points = MutableStateFlow(0)
-    val points = _points.asStateFlow()
+    private fun valueKey(cardId: String) = "${cardId}_value"
+    private fun thresholdKey(cardId: String) = "${cardId}_threshold"
 
-    private val _threshold = MutableStateFlow(DEFAULT_THRESHOLD)
-    val threshold = _threshold.asStateFlow()
+    private val _values = mutableMapOf<String, MutableStateFlow<Int>>()
+    private val _thresholds = mutableMapOf<String, MutableStateFlow<Int>>()
 
-    // The synchronized block ensures thread-safety during initialization
     fun initialize(context: Context) {
         synchronized(this) {
             if (sharedPreferences == null) {
                 sharedPreferences = context.applicationContext.getSharedPreferences(
-                    "points_tracker", Context.MODE_PRIVATE
+                    PREFS_NAME, Context.MODE_PRIVATE
                 )
                 loadInitialValues()
                 registerListener()
@@ -35,17 +33,27 @@ object PointsRepository {
     }
 
     private fun loadInitialValues() {
-        val prefs = getPrefs() // Use a helper to get a non-null reference
-        _points.value = prefs.getInt(KEY_POINTS, 0)
-        _threshold.value = prefs.getInt(KEY_THRESHOLD, DEFAULT_THRESHOLD)
+        val prefs = getPrefs()
+        for (card in CardDefinition.all()) {
+            val value = prefs.getInt(valueKey(card.id), 0)
+            val threshold = prefs.getInt(thresholdKey(card.id), card.defaultThreshold)
+            _values[card.id] = MutableStateFlow(value)
+            _thresholds[card.id] = MutableStateFlow(threshold)
+        }
     }
 
     private fun registerListener() {
-        getPrefs().registerOnSharedPreferenceChangeListener { _, key ->
-            when (key) {
-                KEY_POINTS -> _points.value = getPrefs().getInt(KEY_POINTS, 0)
-                KEY_THRESHOLD -> _threshold.value =
-                    getPrefs().getInt(KEY_THRESHOLD, DEFAULT_THRESHOLD)
+        getPrefs().registerOnSharedPreferenceChangeListener { prefs, key ->
+            if (key == null) return@registerOnSharedPreferenceChangeListener
+            for (card in CardDefinition.all()) {
+                when (key) {
+                    valueKey(card.id) -> {
+                        _values[card.id]?.value = prefs.getInt(key, 0)
+                    }
+                    thresholdKey(card.id) -> {
+                        _thresholds[card.id]?.value = prefs.getInt(key, card.defaultThreshold)
+                    }
+                }
             }
         }
     }
@@ -55,36 +63,45 @@ object PointsRepository {
             ?: throw IllegalStateException("PointsRepository must be initialized")
     }
 
-    fun getPoints(): Int {
-        return _points.value
+    fun getCardValue(cardId: String): StateFlow<Int> {
+        return (_values[cardId] ?: MutableStateFlow(0)).asStateFlow()
     }
 
-    fun addPoints(newPoints: Int): Int {
-        val newTotal = getPoints() + newPoints
-        setPoints(newTotal)
+    fun getCardValueInt(cardId: String): Int {
+        return _values[cardId]?.value ?: 0
+    }
+
+    fun addCardValue(cardId: String, amount: Int): Int {
+        val newTotal = getCardValueInt(cardId) + amount
+        setCardValue(cardId, newTotal)
         return newTotal
     }
 
-    fun resetPoints() {
-        setPoints(0)
-    }
-
-
-    fun getThreshold(): Int {
-        return _threshold.value
-    }
-
-    fun setThreshold(newThreshold: Int) {
-        _threshold.value = newThreshold
+    fun setCardValue(cardId: String, value: Int) {
+        _values[cardId]?.let { it.value = value }
         getPrefs().edit {
-            putInt(KEY_THRESHOLD, newThreshold)
+            putInt(valueKey(cardId), value)
         }
     }
 
-    fun setPoints(newPoints: Int) {
-        _points.value = newPoints
+    fun resetCard(cardId: String) {
+        setCardValue(cardId, 0)
+    }
+
+    fun getCardThreshold(cardId: String): StateFlow<Int> {
+        return (_thresholds[cardId]
+            ?: MutableStateFlow(CardDefinition.fromId(cardId)?.defaultThreshold ?: 0)).asStateFlow()
+    }
+
+    fun getCardThresholdInt(cardId: String): Int {
+        return _thresholds[cardId]?.value
+            ?: CardDefinition.fromId(cardId)?.defaultThreshold ?: 0
+    }
+
+    fun setCardThreshold(cardId: String, threshold: Int) {
+        _thresholds[cardId]?.let { it.value = threshold }
         getPrefs().edit {
-            putInt(KEY_POINTS, newPoints)
+            putInt(thresholdKey(cardId), threshold)
         }
     }
 }

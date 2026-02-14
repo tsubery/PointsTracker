@@ -9,6 +9,7 @@ import android.util.Log
 import androidx.core.app.NotificationCompat
 import androidx.work.CoroutineWorker
 import androidx.work.WorkerParameters
+import com.galtagency.pointstracker.cards.CardDefinition
 
 class NotificationWorker(appContext: Context, workerParams: WorkerParameters) :
     CoroutineWorker(appContext, workerParams) {
@@ -18,29 +19,37 @@ class NotificationWorker(appContext: Context, workerParams: WorkerParameters) :
     override suspend fun doWork(): Result {
         Log.v(TAG, "doWork started")
 
-        val points = PointsRepository.getPoints()
-        val threshold = PointsRepository.getThreshold()
-        Log.v(TAG, "Current points: $points, Threshold: $threshold")
+        for (card in CardDefinition.all()) {
+            val value = PointsRepository.getCardValueInt(card.id)
+            val threshold = PointsRepository.getCardThresholdInt(card.id)
+            Log.v(TAG, "${card.displayName}: value=$value, threshold=$threshold")
 
-        if (points >= threshold) {
-            Log.v(TAG, "Points ($points) >= threshold ($threshold). Showing notification.")
-            showThresholdNotification(points)
-        } else {
-            Log.v(TAG, "Points ($points) < threshold ($threshold). No notification will be shown.")
+            if (value >= threshold) {
+                Log.v(TAG, "${card.displayName} value ($value) >= threshold ($threshold). Showing notification.")
+                showThresholdNotification(card, value)
+            }
         }
 
         Log.v(TAG, "doWork finished")
         return Result.success()
     }
 
-    private fun showThresholdNotification(points: Int) {
+    private fun showThresholdNotification(card: CardDefinition, value: Int) {
+        val formattedValue = card.formatValue(value)
+        val label = card.valueLabel()
+        val text = if (label.isNotEmpty()) {
+            "You've accumulated $formattedValue $label. Please claim your rewards."
+        } else {
+            "You've accumulated $formattedValue. Please claim your rewards."
+        }
         showNotification(
-            "Points Threshold Reached!",
-            "You've accumulated $points points. Please claim your rewards using the app."
+            card = card,
+            title = "${card.displayName} Threshold Reached!",
+            text = text
         )
     }
 
-    fun showNotification(title: String, text: String) {
+    private fun showNotification(card: CardDefinition, title: String, text: String) {
         Log.v(TAG, "showNotification: title='$title', text='$text'")
         val notificationManager =
             applicationContext.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
@@ -49,16 +58,17 @@ class NotificationWorker(appContext: Context, workerParams: WorkerParameters) :
         val channel =
             NotificationChannel(channelId, "Points Tracker", NotificationManager.IMPORTANCE_DEFAULT)
         notificationManager.createNotificationChannel(channel)
-        Log.v(TAG, "Notification channel created.")
 
-        val intent = Intent(applicationContext, LaunchTrampolineActivity::class.java)
+        val intent = Intent(applicationContext, LaunchTrampolineActivity::class.java).apply {
+            putExtra(EXTRA_CARD_ID, card.id)
+        }
+        val requestCode = card.id.hashCode()
         val pendingIntent = PendingIntent.getActivity(
             applicationContext,
-            0,
+            requestCode,
             intent,
             PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT
         )
-
 
         val notification = NotificationCompat.Builder(applicationContext, channelId)
             .setContentTitle(title)
@@ -68,8 +78,8 @@ class NotificationWorker(appContext: Context, workerParams: WorkerParameters) :
             .setAutoCancel(true)
             .build()
 
-        Log.v(TAG, "Notification built. Notifying...")
-        notificationManager.notify(1, notification)
-        Log.v(TAG, "Notification sent.")
+        val notificationId = card.id.hashCode()
+        notificationManager.notify(notificationId, notification)
+        Log.v(TAG, "Notification sent for ${card.displayName}.")
     }
 }
