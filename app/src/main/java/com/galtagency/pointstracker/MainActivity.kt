@@ -15,7 +15,6 @@ import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -23,11 +22,17 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.foundation.background
+import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -38,13 +43,14 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.geometry.Offset
-import androidx.compose.ui.graphics.Shadow
-import androidx.compose.ui.graphics.StrokeCap
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.TextRange
+import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.TextFieldValue
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import com.galtagency.pointstracker.cards.CardDefinition
@@ -74,6 +80,19 @@ private fun parseDollars(text: String): Int? {
     val dollars = parts[0]
     val cents = parts.getOrNull(1)?.padEnd(2, '0')?.take(2) ?: "00"
     return "$dollars$cents".toIntOrNull()
+}
+
+@Composable
+private fun cardAccentColor(card: CardDefinition): Color = when (card.id) {
+    "robinhood" -> Color(0xFFC9A227)
+    "chase" -> Color(0xFF117ACA)
+    else -> MaterialTheme.colorScheme.primary
+}
+
+private fun cardOnAccentColor(card: CardDefinition): Color = when (card.id) {
+    "robinhood" -> Color(0xFF1B1B1B)
+    "chase" -> Color.White
+    else -> Color.White
 }
 
 class MainActivity : ComponentActivity() {
@@ -139,7 +158,7 @@ fun MultiCardScreen(
         Text(
             text = "PointsTracker",
             style = MaterialTheme.typography.headlineLarge,
-            color = MaterialTheme.colorScheme.primary,
+            color = MaterialTheme.colorScheme.onSurface,
             modifier = Modifier.padding(bottom = 8.dp)
         )
 
@@ -164,9 +183,14 @@ fun CardWidget(
 ) {
     val currentValue by PointsRepository.getCardValue(card.id).collectAsState()
     val currentThreshold by PointsRepository.getCardThreshold(card.id).collectAsState()
+    val accent = cardAccentColor(card)
 
     Card(
-        modifier = modifier.fillMaxWidth()
+        modifier = modifier.fillMaxWidth(),
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.surface
+        ),
+        border = BorderStroke(1.dp, accent.copy(alpha = 0.5f))
     ) {
         CardWidgetContent(
             card = card,
@@ -190,6 +214,8 @@ fun CardWidgetContent(
     modifier: Modifier = Modifier
 ) {
     val isDollars = card.valueType == ValueType.DOLLARS
+    val accent = cardAccentColor(card)
+    val onAccent = cardOnAccentColor(card)
 
     var valueText by remember(value, isDollars) {
         val text = if (isDollars) formatDollars(value) else formatWithCommas(value)
@@ -223,51 +249,78 @@ fun CardWidgetContent(
         val pointsPlural = if (currentValue == 1) "point" else "points"
         "${formatWithCommas(currentValue)} / ${formatWithCommas(currentThreshold)} $pointsPlural"
     }
+    val percentText = "${(animatedProgress * 100).toInt()}%"
+    val textFieldColors = OutlinedTextFieldDefaults.colors(
+        focusedBorderColor = accent,
+        unfocusedBorderColor = accent.copy(alpha = 0.65f),
+        focusedLabelColor = accent,
+        unfocusedLabelColor = accent.copy(alpha = 0.8f),
+        cursorColor = accent
+    )
 
     Column(
-        modifier = modifier.padding(16.dp),
+        modifier = modifier.fillMaxWidth(),
         horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.spacedBy(12.dp)
+        verticalArrangement = Arrangement.spacedBy(14.dp)
     ) {
-        Text(
-            text = card.displayName,
-            style = MaterialTheme.typography.titleLarge,
-            color = MaterialTheme.colorScheme.primary
-        )
-
         Box(
             modifier = Modifier
                 .fillMaxWidth()
-                .height(48.dp),
-            contentAlignment = Alignment.Center
-        ) {
-            LinearProgressIndicator(
-                progress = { animatedProgress },
-                modifier = Modifier.fillMaxSize(),
-                strokeCap = StrokeCap.Butt
-            )
+                .height(8.dp)
+                .background(accent)
+        )
 
-            val percentText = "${(animatedProgress * 100).toInt()}%"
-            val outlineColor = MaterialTheme.colorScheme.secondaryContainer
-            val textStyle = MaterialTheme.typography.bodyLarge.copy(
-                fontWeight = FontWeight.Bold,
-                shadow = Shadow(
-                    color = outlineColor,
-                    offset = Offset(4f, 4f),
-                    blurRadius = 8f
-                )
-            )
-
-            Text(
-                text = percentText,
-                color = MaterialTheme.colorScheme.primary,
-                style = textStyle
-            )
-        }
+        Text(
+            text = card.displayName,
+            style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.SemiBold),
+            color = accent,
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 16.dp, vertical = 2.dp),
+            textAlign = TextAlign.Start
+        )
 
         Text(
             text = valueLabel,
-            style = MaterialTheme.typography.bodyLarge
+            style = MaterialTheme.typography.headlineSmall.copy(
+                fontFamily = FontFamily.Monospace,
+                fontWeight = FontWeight.SemiBold
+            ),
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 16.dp),
+            textAlign = TextAlign.Start
+        )
+
+        Text(
+            text = percentText,
+            style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
+            color = accent,
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 16.dp),
+            textAlign = TextAlign.Start
+        )
+
+        LinearProgressIndicator(
+            progress = { animatedProgress },
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(14.dp)
+                .padding(horizontal = 16.dp)
+                .clip(RoundedCornerShape(8.dp)),
+            color = accent,
+            trackColor = accent.copy(alpha = 0.2f)
+        )
+
+        Text(
+            text = "Manual adjustments",
+            style = MaterialTheme.typography.labelLarge,
+            color = accent,
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 16.dp),
+            textAlign = TextAlign.Start
         )
 
         OutlinedTextField(
@@ -299,11 +352,14 @@ fun CardWidgetContent(
             label = {
                 Text(if (isDollars) "Set Amount" else "Set Points")
             },
-            prefix = if (isDollars) { { Text("$") } } else null,
+            prefix = if (isDollars) { { Text("$", color = accent) } } else null,
             keyboardOptions = KeyboardOptions(
                 keyboardType = if (isDollars) KeyboardType.Decimal else KeyboardType.Number
             ),
-            modifier = Modifier.fillMaxWidth()
+            colors = textFieldColors,
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 16.dp)
         )
 
         OutlinedTextField(
@@ -333,16 +389,25 @@ fun CardWidgetContent(
                 }
             },
             label = { Text("Set Notification Threshold") },
-            prefix = if (isDollars) { { Text("$") } } else null,
+            prefix = if (isDollars) { { Text("$", color = accent) } } else null,
             keyboardOptions = KeyboardOptions(
                 keyboardType = if (isDollars) KeyboardType.Decimal else KeyboardType.Number
             ),
-            modifier = Modifier.fillMaxWidth()
+            colors = textFieldColors,
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 16.dp)
         )
 
         Button(
             onClick = onResetClick,
-            modifier = Modifier.fillMaxWidth()
+            colors = ButtonDefaults.buttonColors(
+                containerColor = accent,
+                contentColor = onAccent
+            ),
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(start = 16.dp, end = 16.dp, top = 2.dp, bottom = 12.dp)
         ) {
             Text(if (isDollars) "Reset Amount" else "Reset Points")
         }
