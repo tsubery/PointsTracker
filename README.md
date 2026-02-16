@@ -16,7 +16,7 @@ For the time being it is not published to the app store as I made it for persona
 * This app was vibe coded with AI and likely contains bugs.
 * See [License](LICENSE) for more details
 
-## Screenshots for dark/light mode:
+## Screenshot for dark mode:
 
-<img src="https://github.com/user-attachments/assets/02fc1126-0d8d-4543-9eff-e1ea8fcd5d73" width="200">
-<img src="https://github.com/user-attachments/assets/1f8d5a0c-2b40-4f66-b3ab-bc7e976a0586" width="200">
+<img src="https://github.com/user-attachments/assets/e8ef53ca-5cd4-4c0b-8e99-8f1dcb82eee2" width="200">
+
