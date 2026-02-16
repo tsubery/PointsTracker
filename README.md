@@ -14,10 +14,10 @@ Download the latest published artifact directly:
 2. Move the APK to your Android device and install it.
 3. If prompted, allow installs from unknown sources for the app you used to open the APK.
 
-Android requires giving the app access to notifications, but the app only parses notifications from supported card apps.
-The app does not collect or track anything except accumulated points count. It stores everything locally and does not ask for permissions to access the internet.
-Because the app has no internet permission, it cannot send your notification data or totals to external servers, which helps protect user privacy.
-For the time being it is not published to the app store as I made it for personal use. I may publish it if anyone asks.
+## Privacy concerns
+The app is intentionally designed to be only local. It does not have permission to access the internet in order to protect user privacy.
+Android requires giving the app access to all notifications, but the app only parses notifications from supported card apps.
+The app does not collect or track anything except accumulated points or dollars from supported cards.
 
 ## Important disclaimers:
 * This project is not affiliated in anyway with Robinhood Markets, Inc and/or JP Morgan Chase.
