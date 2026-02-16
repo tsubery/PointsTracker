@@ -1,8 +1,14 @@
 # Points Tracker
-This app keeps a running tally of accumulated reward points by Credit Cards such as Robinhood Gold Credit Card and sends a notification when threshold reached in order to maximize cashback.
-For example, It can notify the user every time a 100$ (10,000 points) threshold is reached.
-Android requires giving the app access to all notifications but the app ignores everything except messages from credit card apps that contain the patter "+xx points".
+This app keeps a running tally of accumulated rewards from supported credit card apps and sends a notification when a threshold is reached.
+For example, it can notify the user every time a $100 threshold is reached.
+
+## Supported cards
+* Robinhood Gold Card (`com.robinhood.money`): tracks points parsed from notification text like `(+63 points)`.
+* Chase (`com.chase.sig.android`): tracks dollar transaction amounts parsed from notification text like `$20.89` (stored as cents internally).
+
+Android requires giving the app access to notifications, but the app only parses notifications from supported card apps.
 The app does not collect or track anything except accumulated points count. It stores everything locally and does not ask for permissions to access the internet.
+Because the app has no internet permission, it cannot send your notification data or totals to external servers, which helps protect user privacy.
 For the time being it is not published to the app store as I made it for personal use. I may publish it if anyone asks.
 
 ## Important disclaimers:
